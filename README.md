@@ -1,128 +1,62 @@
-# 🧠 NeuralPilot
+# NeuralPilot: Visual OS Agent
 
-**A real-time AI screen agent powered by NVIDIA's LocateAnything-3B model.**
+NeuralPilot is a highly capable, dual-model autonomous OS Agent. It can view your screen, reason about tasks, and physically control your mouse and keyboard to execute complex objectives on your computer.
 
-NeuralPilot watches your computer screen and can find *anything* you describe using natural language — icons, buttons, people, objects — and pinpoints their exact pixel location. This is the foundation for building fully autonomous OS agents that can control your computer on their own.
-
-![Python](https://img.shields.io/badge/Python-3.11-blue)
-![NVIDIA](https://img.shields.io/badge/Model-LocateAnything--3B-76b900?logo=nvidia)
-![Google Colab](https://img.shields.io/badge/Backend-Google%20Colab%20GPU-F9AB00?logo=googlecolab)
-![License](https://img.shields.io/badge/License-MIT-green)
+It is built using a **Split-Brain Architecture**:
+1. **The Brain (Google Gemini 3.5 Flash)**: Runs via API. Looks at screenshots of your computer and outputs structured JSON action plans (`type`, `click`, `press`).
+2. **The Eyes (NVIDIA LocateAnything-3B)**: Hosted on a free Google Colab T4 GPU. Receives visual descriptions from the Brain (e.g., "blue Windows start button") and generates exact pixel coordinates for PyAutoGUI to click.
 
 ---
 
-## 🎬 What It Does
+## 🚀 Setup & Installation
 
-NeuralPilot takes a screenshot of your PC screen every second, fires it to a cloud GPU running the NVIDIA LocateAnything-3B model, and draws precise bounding boxes around whatever you describe in plain English — in real time.
+### 1. Start the Eyes (Colab Backend)
+Because running large vision models locally requires a powerful GPU, NeuralPilot hosts the "Eyes" on a free Google Colab instance.
+1. Upload `LocateAnything_Colab.ipynb` to Google Colab.
+2. Go to **Runtime > Run all**.
+3. Scroll to the bottom and copy the public `.gradio.live` URL.
 
-**Example:** Type `"app icon on the Windows taskbar"` and watch it instantly light up every single icon on your taskbar with a glowing box.
+### 2. Setup the Brain (Local Execution)
+Run the actual agent locally on your Windows machine.
 
----
+```bash
+# Clone the repo
+git clone https://github.com/YOUR_USERNAME/NeuralPilot.git
+cd NeuralPilot
 
-## 🏗️ Architecture
-
-This project uses a **Client-Server hybrid** to combine cloud GPU power with a local desktop feel — completely free.
-
-```
-Your PC (Client)                      Google Colab (Server — FREE GPU)
-────────────────────                  ────────────────────────────────
- 📸 mss  →  Screenshot
- 📤  ──────────────────────────────►  🧠 NVIDIA LocateAnything-3B (T4 GPU)
- 🖼️  ◄──────────────────────────────  📦 Image with bounding boxes drawn
- 🖥️  Display result window
+# Install dependencies
+pip install -r requirements.txt
+pip install google-generativeai mss pyautogui opencv-python gradio_client Pillow numpy
 ```
 
----
+### 3. Run the Agent
+The Brain requires a free Google Gemini API key. You can get one at [aistudio.google.com](https://aistudio.google.com/).
 
-## 🚀 Quick Start
+Before running the agent, set your API key as an environment variable and update the Colab URL in the script.
 
-### Step 1: Launch the Cloud GPU Server (Google Colab)
-
-1. Open [`LocateAnything_Colab.ipynb`](./LocateAnything_Colab.ipynb) in [Google Colab](https://colab.research.google.com/).
-2. Set the runtime to **GPU → T4**.
-3. Run **Cell 1** to install all dependencies.
-4. Run **Cell 2** to launch the Gradio API server.
-5. Copy the public `.gradio.live` URL that appears in the output.
-
-### Step 2: Run the Local Client (Your PC)
-
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/FahadNafeesAhmed/NeuralPilot.git
-   cd NeuralPilot
-   ```
-
-2. Install local dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Open `api_client.py` and fill in your two settings:
-   ```python
-   # Line 11 — Paste your Colab .gradio.live URL here
-   COLAB_URL = "https://YOUR_LINK_HERE.gradio.live"
-
-   # Line 16 — Type what you want to find on your screen
-   SEARCH_QUERY = "Google Chrome icon"
-   ```
-
-4. Run it!
-   ```bash
-   python api_client.py
-   ```
-
-A window pops up showing your live screen with glowing bounding boxes drawn around your target. Press **`q`** to quit.
-
----
-
-## 💡 Example Search Queries
-
-| Query | What it finds |
-|---|---|
-| `"app icon on the Windows taskbar"` | All taskbar icons at once |
-| `"Google Chrome icon"` | The Chrome browser icon |
-| `"close button"` | The ✕ button on any window |
-| `"person"` | Any human visible on screen |
-| `"dog"` | Any dog visible on screen |
-| `"the search bar"` | Any text input field |
-
----
-
-## 📁 Project Structure
-
-```
-NeuralPilot/
-├── 📓 LocateAnything_Colab.ipynb   # Google Colab notebook (the GPU server)
-├── 🐍 api_client.py                # Local client — sends frames to Colab API
-├── 🐍 app.py                       # Alternative: run model locally on CPU
-├── 📦 requirements.txt             # Local Python dependencies
-└── 📖 README.md
+**Windows PowerShell:**
+```powershell
+$env:GEMINI_API_KEY="your_api_key_here"
 ```
 
-> **Note:** The NVIDIA Eagle model source code is cloned at runtime inside the Colab notebook. It is not included in this repo.
+Open `os_agent.py` and paste your Colab `.gradio.live` link into `COLAB_URL`.
 
----
+**Start the agent:**
+```bash
+python os_agent.py
+```
 
-## 🔮 Roadmap — Building a Full OS Agent
+## 🧠 How it Works
 
-NeuralPilot is the **Vision Layer** of a complete autonomous OS agent. Here is what's next:
+1. **Screenshot**: `mss` takes a screenshot of your primary monitor.
+2. **Reasoning**: The screenshot and the objective (e.g. "Open Chrome") are sent to Gemini 3.5 Flash.
+3. **JSON Router**: Gemini outputs a JSON command:
+    - `{"action": "click", "target": "chrome icon"}`
+    - `{"action": "type", "text": "hello"}`
+    - `{"action": "press", "key": "win"}`
+4. **Grounding**: If the action is `click`, the target string is sent to the Colab GPU running NVIDIA LocateAnything-3B, which returns the exact X/Y pixel coordinates of that object on your screen.
+5. **Execution**: PyAutoGUI moves your physical mouse and clicks, or types on your keyboard.
 
-- [ ] Return raw `(x1, y1, x2, y2)` coordinates from API instead of an annotated image
-- [ ] Add `pyautogui` to automatically move the mouse and click detected targets
-- [ ] Integrate a reasoning LLM (Claude 3.5 / GPT-4o) as the autonomous "Brain"
-- [ ] Build the full agent loop: `Screenshot → Think → Find → Click → Repeat`
-- [ ] Add voice input: *"Open YouTube"* triggers the full autonomous loop
-
----
-
-## 🙏 Credits
-
-- **NVIDIA Research** for the [LocateAnything-3B](https://huggingface.co/nvidia/LocateAnything-3B) model
-- **Google Colab** for the free T4 GPU
-- **Gradio** for the zero-config API server framework
-
----
-
-## 📄 License
-
-MIT License — feel free to fork and build on top of this!
+## ⚠️ Notes
+- If your mouse clicks the wrong spot, ensure Windows Display Scaling is handled. The script currently uses `ctypes.windll.shcore.SetProcessDpiAwareness(2)`.
+- Google Colab free tier will disconnect after periods of inactivity. You will need to click "Reconnect" and generate a new Gradio link if it times out.
